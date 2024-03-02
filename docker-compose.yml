@@ -1,0 +1,53 @@
+version: '3'
+
+services:
+  auth:
+    image: auth:local
+    container_name: auth-service
+    build:
+      context: auth
+      dockerfile: Dockerfile
+      args:
+        - SERVICE_NAME=auth
+    ports:
+      - "8080:8080"
+    volumes: 
+      - ./auth/config.yml:/app/config.yml
+    environment:
+      - PORT=8080
+
+  task:
+    image: task:local
+    container_name: task-service
+    build:
+      context: task
+      dockerfile: Dockerfile
+      args:
+        - SERVICE_NAME=task
+    depends_on:
+      - auth
+    ports:
+      - "8081:8081"
+    volumes: 
+      - ./task/config.yml:/app/config.yml
+    environment:
+      - PORT=8081
+      - AUTH_HOST=http://auth-service
+      - AMQP_HOST=rabbitmq
+
+  rabbitmq:
+    image: rabbitmq:management
+    hostname: rabbitmq
+    restart: always
+    container_name: rabbitmq
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+volumes:
+  rabbitmq_data:
