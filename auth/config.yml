@@ -3,3 +3,10 @@ port: "8080"
 
 jwt:
   secret: "secret"
+
+
+amqp:
+  host: "localhost"
+  port: "5672"
+  user: "guest"
+  password: "guest"
