@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 
-	"github.com/OliviaDilan/async_arc/task/internal/auth"
+	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
 )
 

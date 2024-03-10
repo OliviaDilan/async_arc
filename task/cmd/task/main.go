@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/OliviaDilan/async_arc/task/internal/amqp"
-	"github.com/OliviaDilan/async_arc/task/internal/auth"
+	"github.com/OliviaDilan/async_arc/pkg/auth"
+	"github.com/OliviaDilan/async_arc/pkg/amqp"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
@@ -30,7 +30,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer amqpClient.Close()
 
 	taskRepo := task.NewInMemoryRepository()
 
@@ -42,7 +41,7 @@ func main() {
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(handler.AuthMiddleware(authClient))
+	r.Use(auth.Middleware(authClient))
 
 	r.Post("/create_task", h.CreateTask)
 	r.Post("/assign_all_tasks", h.AssignTasks)
@@ -66,6 +65,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		err := srv.Shutdown(ctx)
+		amqpClient.Close()
 		done <- err
 	}()
 
