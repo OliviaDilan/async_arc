@@ -13,7 +13,7 @@ type PublisherSet struct {
 }
 
 func NewPublisherSet(amqpClient amqp.Client) (*PublisherSet, error) {
-	p, err := amqpClient.NewPublisher("auth.user_created")
+	p, err := amqpClient.NewPublisher("user_created")
 	if err != nil {
 		return nil, err
 	}
@@ -25,8 +25,6 @@ func NewPublisherSet(amqpClient amqp.Client) (*PublisherSet, error) {
 
 func (s *PublisherSet) UserCreatedV1(ctx context.Context, user user.User) error {
 	message := auth.NewUserCreatedV1(user.Username)
-	message.Marshal()
-	message.Metadata.Marshal()
-
+	
 	return s.onRegisterPublisher.Publish(ctx, message)
 }
