@@ -16,6 +16,7 @@ import (
 	"github.com/OliviaDilan/async_arc/task/internal/config"
 	"github.com/OliviaDilan/async_arc/task/internal/handler"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
+	internalAMQP "github.com/OliviaDilan/async_arc/task/internal/amqp"
 )
 
 func main() {
@@ -31,11 +32,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	publisherSet, err := internalAMQP.NewPublisherSet(amqpClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	taskRepo := task.NewInMemoryRepository()
 
 	authClient := auth.NewClient(cfg.Auth.Host, cfg.Auth.Port)
 
-	h := handler.NewHandler(taskRepo, authClient)
+	h := handler.NewHandler(taskRepo, authClient, publisherSet)
 
 	r := chi.NewRouter()
 

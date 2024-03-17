@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 
+	"github.com/OliviaDilan/async_arc/task/internal/amqp"
 	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
 )
@@ -13,12 +14,14 @@ import (
 type Handler struct {
 	taskRepo task.Repository
 	authClient auth.Client
+	publisherSet *amqp.PublisherSet
 }
 
-func NewHandler(taskRepo task.Repository, authClient auth.Client) *Handler {
+func NewHandler(taskRepo task.Repository, authClient auth.Client, publisherSet *amqp.PublisherSet) *Handler {
 	return &Handler{
 		taskRepo: taskRepo,
 		authClient: authClient,
+		publisherSet: publisherSet,
 	}
 }
 
@@ -36,6 +39,13 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	createdTask, err := h.taskRepo.Create(req.Title); 
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = h.publisherSet.TaskCreatedV1(r.Context(), createdTask)
+	if err != nil {
+		log.Printf("Failed to publish task created: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -167,6 +177,20 @@ func (h *Handler) CloseTask(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.taskRepo.Close(req.TaskID); err != nil {
 		log.Printf("Failed to close task: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	deletedTask, err := h.taskRepo.GetByID(req.TaskID)
+	if err != nil {
+		log.Printf("Failed to get task: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = h.publisherSet.TaskCreatedV1(r.Context(), deletedTask)
+	if err != nil {
+		log.Printf("Failed to publish task created: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
