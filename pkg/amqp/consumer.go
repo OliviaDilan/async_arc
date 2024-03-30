@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"context"
+	"log"
 
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -20,7 +21,6 @@ type queueConsumer struct {
 }
 
 func (c *queueConsumer) Consume(ctx context.Context, handler ConsumeHandlerFunc) error {
-
 	msgs, err := c.ch.Consume(
 		c.queue.Name, // queue
 		uuid.New().String(),     // consumer
@@ -33,10 +33,16 @@ func (c *queueConsumer) Consume(ctx context.Context, handler ConsumeHandlerFunc)
 	if err != nil {
 		return err
 	}
+	defer c.Close()
 
 	for {
 		select {
-		case d := <-msgs:
+		case d, ok := <-msgs:
+			if !ok {
+				log.Println("channel closed")
+				return nil
+			}
+
 			if err := handler(ctx, d.Body); err != nil {
 				return err
 			}
