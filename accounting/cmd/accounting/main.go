@@ -5,21 +5,26 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"time"
 
-	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/OliviaDilan/async_arc/pkg/amqp"
+	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
 
+	"github.com/OliviaDilan/async_arc/accounting/internal/account"
+	internalAMQP "github.com/OliviaDilan/async_arc/accounting/internal/amqp"
 	"github.com/OliviaDilan/async_arc/accounting/internal/config"
 	"github.com/OliviaDilan/async_arc/accounting/internal/handler"
-	"github.com/OliviaDilan/async_arc/accounting/internal/account"
+	"github.com/OliviaDilan/async_arc/accounting/internal/task"
 )
 
 func main() {
-	// Handle HTTP request
+	ctx, shutdown := appContext()
+	defer shutdown()
+
 	cfg := config.Server{}
 
 	if err := cleanenv.ReadConfig("config.yml", &cfg); err != nil {
@@ -31,25 +36,44 @@ func main() {
 		log.Fatal(err)
 	}
 
+	consumerSet := internalAMQP.NewConsumerSet(amqpClient)
 
 	accountRepo := account.NewInMemoryRepository()
 
+	taskRepo := task.NewInMemoryRepository()
+
 	authClient := auth.NewClient(cfg.Auth.Host, cfg.Auth.Port)
 
-	h := handler.NewHandler(accountRepo, authClient)
+	h := handler.NewHandler(accountRepo, taskRepo, authClient)
 
-	userCreatedConsumer, err := amqpClient.NewConsumer("user_created")
+	err = consumerSet.Subscribe("user_created", h.OnUserCreated)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	go userCreatedConsumer.Consume(context.Background(), h.OnUserCreated)
+	err = consumerSet.Subscribe("task_created", h.OnTaskCreated)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = consumerSet.Subscribe("task_assigned", h.OnTaskAssigned)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = consumerSet.Subscribe("task_completed", h.OnTaskCompleted)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	consumerSet.StartConsumers(ctx)
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(auth.Middleware(authClient))
+	r.Get("/all_accounts", h.GetAccounts)
 
 
 	path := cfg.Host + ":" + cfg.Port
@@ -59,11 +83,10 @@ func main() {
 		Handler: r,
 	}
 
-	quit := make(chan os.Signal, 1)
 	done := make(chan error, 1)
 
 	go func() {
-		<-quit
+		<-ctx.Done()
 		log.Print("Shutting down server")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
@@ -77,4 +100,8 @@ func main() {
 
 	err = <-done
 	log.Print("Stopping server with error: ", err)
+}
+
+func appContext() (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(context.Background(), os.Interrupt)
 }

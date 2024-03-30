@@ -7,16 +7,16 @@ import (
 	"os"
 	"time"
 
-	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/OliviaDilan/async_arc/pkg/amqp"
+	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
 
+	internalAMQP "github.com/OliviaDilan/async_arc/task/internal/amqp"
 	"github.com/OliviaDilan/async_arc/task/internal/config"
 	"github.com/OliviaDilan/async_arc/task/internal/handler"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
-	internalAMQP "github.com/OliviaDilan/async_arc/task/internal/amqp"
 )
 
 func main() {
@@ -51,7 +51,7 @@ func main() {
 
 	r.Post("/create_task", h.CreateTask)
 	r.Post("/assign_all_tasks", h.AssignTasks)
-	r.Post("/close_task", h.CloseTask)
+	r.Post("/close_task", h.CompleteTask)
 	r.Get("/all_tasks", h.GetTasks)
 	r.Get("/all_tasks_by_assignee", h.GetTasksByAssignee)
 

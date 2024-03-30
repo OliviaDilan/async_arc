@@ -38,6 +38,26 @@ services:
       - AUTH_HOST=http://auth-service
       - AMQP_HOST=rabbitmq
 
+  accounting:
+    image: accounting:local
+    container_name: accounting-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - SERVICE_NAME=accounting
+    depends_on:
+      - auth
+      - task
+    ports:
+      - "8082:8082"
+    volumes: 
+      - ./accounting/config.yml:/app/config.yml
+    environment:
+      - PORT=8082
+      - AUTH_HOST=http://auth-service
+      - AMQP_HOST=rabbitmq
+
   rabbitmq:
     image: rabbitmq:management
     hostname: rabbitmq

@@ -6,6 +6,7 @@ import (
 	"github.com/OliviaDilan/async_arc/pkg/contract"
 )
 
+// Task created contract
 type TaskCreatedV1 struct {
 	contract.Metadata `json:"metadata"`
 
@@ -27,8 +28,32 @@ func (m *TaskCreatedV1) Unmarshal(body []byte) error {
 	return json.Unmarshal(body, m)
 }
 
-//task completed contract
+// Task assigned contract
+type TaskAssignedV1 struct {
+	contract.Metadata `json:"metadata"`
 
+	TaskID int `json:"task_id"`
+	UserID string `json:"user_id"`
+}
+
+func NewTaskAssignedV1(taskID int, userID string) *TaskAssignedV1 {
+	return &TaskAssignedV1{
+		TaskID: taskID,
+		UserID: userID,
+		Metadata: contract.NewMetadataV1(),
+	}
+}
+
+
+func (m TaskAssignedV1) Marshal() ([]byte, error) {
+	return json.Marshal(m)
+}
+
+func (m *TaskAssignedV1) Unmarshal(body []byte) error {
+	return json.Unmarshal(body, m)
+}
+
+// Task completed contract
 type TaskCompletedV1 struct {
 	contract.Metadata `json:"metadata"`
 

@@ -6,8 +6,8 @@ import (
 	"math/rand"
 	"net/http"
 
-	"github.com/OliviaDilan/async_arc/task/internal/amqp"
 	"github.com/OliviaDilan/async_arc/pkg/auth"
+	"github.com/OliviaDilan/async_arc/task/internal/amqp"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
 )
 
@@ -124,6 +124,13 @@ func (h *Handler) AssignTasks(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		err = h.publisherSet.TaskAssignedV1(r.Context(), task)
+		if err != nil {
+			log.Printf("Failed to publish task completed: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -163,7 +170,7 @@ func (h *Handler) GetTasksByAssignee(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) CloseTask(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 
 	var req closeTaskRequest
 
@@ -181,16 +188,16 @@ func (h *Handler) CloseTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deletedTask, err := h.taskRepo.GetByID(req.TaskID)
+	completedTask, err := h.taskRepo.GetByID(req.TaskID)
 	if err != nil {
 		log.Printf("Failed to get task: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	err = h.publisherSet.TaskCreatedV1(r.Context(), deletedTask)
+	err = h.publisherSet.TaskCompletedV1(r.Context(), completedTask)
 	if err != nil {
-		log.Printf("Failed to publish task created: %s", err)
+		log.Printf("Failed to publish task completed: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
