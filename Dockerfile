@@ -1,14 +1,17 @@
 FROM golang:alpine
 
-WORKDIR /app/
-ADD . /app/
-
 RUN apk update && apk upgrade \
     && apk add --no-cache git
 
-RUN go mod download
-
 ARG SERVICE_NAME
+
+WORKDIR /services/
+ADD ./${SERVICE_NAME}/ /services/app/
+ADD ./pkg/ /services/pkg/
+
+WORKDIR /services/app/
+
+RUN go mod download
 
 RUN go build -o bin/app ./cmd/$SERVICE_NAME/main.go
 

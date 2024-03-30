@@ -10,6 +10,10 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/ilyakaznacheev/cleanenv"
 
+	"github.com/OliviaDilan/async_arc/pkg/amqp"
+
+	internalAMQP "github.com/OliviaDilan/async_arc/auth/internal/amqp"
+
 	"github.com/OliviaDilan/async_arc/auth/internal/config"
 	"github.com/OliviaDilan/async_arc/auth/internal/handler"
 	"github.com/OliviaDilan/async_arc/auth/internal/user"
@@ -25,10 +29,20 @@ func main() {
 		log.Fatal(err)
 	}
 
+	amqpClient, err := amqp.NewClient(cfg.AMQP.URI())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publisherSet, err := internalAMQP.NewPublisherSet(amqpClient)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	userRepo := user.NewInMemoryRepository()
 	jwtService := jwt.NewService(cfg.JWT.Secret)
 
-	h := handler.NewHandler(userRepo, jwtService)
+	h := handler.NewHandler(userRepo, jwtService, publisherSet)
 
 	r := chi.NewRouter()
 
@@ -52,15 +66,15 @@ func main() {
 		log.Print("Shutting down server")
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-
 		err := srv.Shutdown(ctx)
+		amqpClient.Close()
 		done <- err
 	}()
 
 	log.Printf("Listening on %s", path)
 	_ = srv.ListenAndServe()
 
-	err := <-done
+	err = <-done
 	log.Print("Stopping server with error: ", err)
 
 }

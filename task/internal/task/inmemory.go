@@ -69,3 +69,11 @@ func (r *inMemoryRepository) Assign(taskID int, username string) error {
 	task.Assignee = username
 	return nil
 }
+
+func (r *inMemoryRepository) GetByID(taskID int) (*Task, error) {
+	task, ok := r.tasks[taskID]
+	if !ok {
+		return nil, fmt.Errorf("task not found")
+	}
+	return task, nil
+}
