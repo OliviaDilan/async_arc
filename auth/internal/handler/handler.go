@@ -6,21 +6,25 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/OliviaDilan/async_arc/auth/internal/amqp"
 	"github.com/OliviaDilan/async_arc/auth/internal/jwt"
 	"github.com/OliviaDilan/async_arc/auth/internal/user"
 )
 
 type Handler struct {
+	publisherSet *amqp.PublisherSet
 	userRepo user.Repository
 	jwt      jwt.Service
 }
 
-func NewHandler(userRepo user.Repository, jwt jwt.Service) *Handler {
+func NewHandler(userRepo user.Repository, jwt jwt.Service, publisherSet *amqp.PublisherSet) *Handler {
 	return &Handler{
+		publisherSet: publisherSet,
 		userRepo: userRepo,
 		jwt:      jwt,
 	}
 }
+
 
 func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 
@@ -42,6 +46,13 @@ func (h *Handler) Registration(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.userRepo.Create(&user); err != nil {
 		log.Printf("Failed to create user: %s", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err := h.publisherSet.UserCreatedV1(r.Context(), user)
+	if err != nil {
+		log.Printf("Failed to publish user created: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

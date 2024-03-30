@@ -7,12 +7,13 @@ import (
 	"os"
 	"time"
 
-	"github.com/OliviaDilan/async_arc/task/internal/amqp"
-	"github.com/OliviaDilan/async_arc/task/internal/auth"
+	"github.com/OliviaDilan/async_arc/pkg/amqp"
+	"github.com/OliviaDilan/async_arc/pkg/auth"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/ilyakaznacheev/cleanenv"
 
+	internalAMQP "github.com/OliviaDilan/async_arc/task/internal/amqp"
 	"github.com/OliviaDilan/async_arc/task/internal/config"
 	"github.com/OliviaDilan/async_arc/task/internal/handler"
 	"github.com/OliviaDilan/async_arc/task/internal/task"
@@ -30,23 +31,27 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer amqpClient.Close()
+
+	publisherSet, err := internalAMQP.NewPublisherSet(amqpClient)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	taskRepo := task.NewInMemoryRepository()
 
 	authClient := auth.NewClient(cfg.Auth.Host, cfg.Auth.Port)
 
-	h := handler.NewHandler(taskRepo, authClient)
+	h := handler.NewHandler(taskRepo, authClient, publisherSet)
 
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
-	r.Use(handler.AuthMiddleware(authClient))
+	r.Use(auth.Middleware(authClient))
 
 	r.Post("/create_task", h.CreateTask)
 	r.Post("/assign_all_tasks", h.AssignTasks)
-	r.Post("/close_task", h.CloseTask)
+	r.Post("/close_task", h.CompleteTask)
 	r.Get("/all_tasks", h.GetTasks)
 	r.Get("/all_tasks_by_assignee", h.GetTasksByAssignee)
 
@@ -66,6 +71,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
 		err := srv.Shutdown(ctx)
+		amqpClient.Close()
 		done <- err
 	}()
 

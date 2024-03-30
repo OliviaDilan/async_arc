@@ -1,13 +1,11 @@
-package handler
+package auth
 
 import (
 	"context"
 	"net/http"
-
-	"github.com/OliviaDilan/async_arc/task/internal/auth"
 )
 
-func AuthMiddleware(authClient auth.Client) func(next http.Handler) http.Handler {
+func Middleware(authClient Client) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			token := r.Header.Get("Authorization")
@@ -31,12 +29,12 @@ func AuthMiddleware(authClient auth.Client) func(next http.Handler) http.Handler
 
 type ctxUserKey struct {}
 
-func WithUserContext(ctx context.Context, user *auth.User) context.Context {
+func WithUserContext(ctx context.Context, user *User) context.Context {
 	return context.WithValue(ctx, ctxUserKey{}, user)
 }
 
-func UserFromContext(ctx context.Context) *auth.User {
-	user, ok := ctx.Value(ctxUserKey{}).(*auth.User)
+func UserFromContext(ctx context.Context) *User {
+	user, ok := ctx.Value(ctxUserKey{}).(*User)
 	if !ok {
 		return nil
 	}

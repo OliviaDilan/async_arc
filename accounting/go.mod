@@ -1,11 +1,13 @@
-module github.com/OliviaDilan/async_arc/auth
+module github.com/OliviaDilan/async_arc/accounting
 
 go 1.21.0
+
+replace github.com/OliviaDilan/async_arc/pkg => ../pkg
 
 require (
 	github.com/OliviaDilan/async_arc/pkg v0.0.0-00010101000000-000000000000
 	github.com/go-chi/chi v1.5.5
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/go-chi/chi/v5 v5.0.12
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 )
 
@@ -17,5 +19,3 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
-
-replace github.com/OliviaDilan/async_arc/pkg => ../pkg

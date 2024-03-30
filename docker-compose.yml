@@ -5,22 +5,25 @@ services:
     image: auth:local
     container_name: auth-service
     build:
-      context: auth
+      context: .
       dockerfile: Dockerfile
       args:
         - SERVICE_NAME=auth
+    depends_on:
+      - rabbitmq
     ports:
       - "8080:8080"
     volumes: 
       - ./auth/config.yml:/app/config.yml
     environment:
       - PORT=8080
+      - AMQP_HOST=rabbitmq
 
   task:
     image: task:local
     container_name: task-service
     build:
-      context: task
+      context: .
       dockerfile: Dockerfile
       args:
         - SERVICE_NAME=task
@@ -32,6 +35,26 @@ services:
       - ./task/config.yml:/app/config.yml
     environment:
       - PORT=8081
+      - AUTH_HOST=http://auth-service
+      - AMQP_HOST=rabbitmq
+
+  accounting:
+    image: accounting:local
+    container_name: accounting-service
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - SERVICE_NAME=accounting
+    depends_on:
+      - auth
+      - task
+    ports:
+      - "8082:8082"
+    volumes: 
+      - ./accounting/config.yml:/app/config.yml
+    environment:
+      - PORT=8082
       - AUTH_HOST=http://auth-service
       - AMQP_HOST=rabbitmq
 
